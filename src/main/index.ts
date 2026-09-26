@@ -1,22 +1,107 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session, WebContents } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { getBlockedPageUrl, isBlockedSocialUrl } from '../shared/sitePolicy'
+
+const BROWSER_PARTITION = 'persist:lockedin'
+
+type SessionMode = 'idle' | 'locked' | 'break'
+
+let sessionMode: SessionMode = 'idle'
+
+function isLockActive(): boolean {
+  return sessionMode === 'locked'
+}
+
+function applyWindowMode(win: BrowserWindow, mode: SessionMode): void {
+  if (win.isDestroyed()) return
+
+  if (mode === 'locked') {
+    win.setKiosk(true)
+    return
+  }
+
+  win.setKiosk(false)
+  win.setAlwaysOnTop(false)
+  if (win.isFullScreen()) {
+    win.setFullScreen(false)
+  }
+  win.setMinimizable(true)
+  win.setMaximizable(true)
+  win.setClosable(true)
+}
+
+function guardWebContents(contents: WebContents): void {
+  contents.on('will-navigate', (event, url) => {
+    if (!isLockActive() || !isBlockedSocialUrl(url)) return
+    event.preventDefault()
+    void contents.loadURL(getBlockedPageUrl())
+  })
+
+  contents.on('will-redirect', (event, url) => {
+    if (!isLockActive() || !isBlockedSocialUrl(url)) return
+    event.preventDefault()
+    void contents.loadURL(getBlockedPageUrl())
+  })
+
+  contents.setWindowOpenHandler(({ url }) => {
+    if (isLockActive() && isBlockedSocialUrl(url)) {
+      return { action: 'deny' }
+    }
+
+    const host = contents.hostWebContents
+    if (host && !host.isDestroyed()) {
+      host.send('browser:open-tab', url)
+    }
+
+    return { action: 'deny' }
+  })
+}
+
+function registerSocialBlocker(): void {
+  const browserSession = session.fromPartition(BROWSER_PARTITION)
+  const filter = { urls: ['*://*/*'] }
+
+  browserSession.webRequest.onBeforeRequest(filter, (details, callback) => {
+    if (!isLockActive() || !isBlockedSocialUrl(details.url)) {
+      callback({})
+      return
+    }
+
+    if (details.resourceType === 'mainFrame') {
+      callback({ redirectURL: getBlockedPageUrl() })
+      return
+    }
+
+    callback({ cancel: true })
+  })
+}
 
 function createWindow(): void {
-  // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1200,
+    height: 800,
     show: false,
     autoHideMenuBar: true,
-    kiosk: true,
+    kiosk: false,
+    titleBarStyle: 'hidden', // <-- ADD THIS: Hides the default OS title bar
+    titleBarOverlay: {       // <-- ADD THIS: Styles the Windows/Mac control buttons
+      color: '#111111', 
+      symbolColor: '#ffffff'
+    },
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
-      webviewTag : true, 
+      webviewTag: true,
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
     }
+  })
+
+  mainWindow.webContents.on('will-attach-webview', (_event, webPreferences) => {
+    webPreferences.nodeIntegration = false
+    webPreferences.contextIsolation = true
+    webPreferences.preload = undefined
   })
 
   mainWindow.on('ready-to-show', () => {
@@ -28,8 +113,6 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -37,40 +120,40 @@ function createWindow(): void {
   }
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
+  registerSocialBlocker()
 
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+  app.on('web-contents-created', (_event, contents) => {
+    if (contents.getType() === 'webview') {
+      guardWebContents(contents)
+    }
+  })
+
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
+  ipcMain.on('session:mode', (event, mode: SessionMode) => {
+    if (mode !== 'idle' && mode !== 'locked' && mode !== 'break') return
+    sessionMode = mode
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (win) {
+      applyWindowMode(win, mode)
+    }
+  })
+
   ipcMain.on('ping', () => console.log('pong'))
 
   createWindow()
 
   app.on('activate', function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.

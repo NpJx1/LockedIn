@@ -1,9 +1,312 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@700&family=Inter:wght@400;600&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
 
 body {
+  background-color: #0a0a0a;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rem;
+}
+
+.title {
+  font-size: 1.2rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #666;
+  font-weight: 600;
+}
+
+.timer-display {
+  font-family: 'Space Mono', monospace;
+  font-variant-numeric: slashed-zero;
+  font-size: 9rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  text-shadow: 0 0 40px rgba(255, 255, 255, 0.1);
+}
+
+.controls-container {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn {
+  background: transparent;
+  color: #888;
+  border: 1px solid #333;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  font-family: 'Inter', sans-serif;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 100px;
+}
+
+.btn:hover {
+  border-color: #fff;
+  color: #fff;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: #333;
+  color: #555;
+}
+
+.btn-active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.btn-active:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.btn-danger {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.btn-danger:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
+.browser-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.webview-frame {
+  flex-grow: 1;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.floating-timer {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(10, 10, 10, 0.75);
+  backdrop-filter: blur(12px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+}
+
+.floating-time {
+  font-family: 'Space Mono', monospace;
+  font-variant-numeric: slashed-zero;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.floating-points {
+  font-family: 'Space Mono', monospace;
+  font-variant-numeric: slashed-zero;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.04em;
+}
+
+.btn-small {
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  min-width: unset;
+}
+
+.app-shell {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #0a0a0a;
+}
+
+.tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.6rem;
+  background: #111;
+  border-bottom: 1px solid #222;
+  overflow-x: auto;
+  flex-shrink: 0;
+  -webkit-app-region: drag; /* <-- ADD THIS: Makes the top bar act like a title bar */
+  padding-right: 140px; /* <-- ADD THIS: Leaves space for the OS close/minimize buttons */
+}
+
+/* Ensure the buttons INSIDE the tab bar are still clickable */
+.tab, .tab-new, .tab-points, .tab-timer {
+  -webkit-app-region: no-drag; 
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 180px;
+  background: #1a1a1a;
+  color: #888;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.tab-active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-close {
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.tab-close:hover {
+  opacity: 1;
+}
+
+.tab-new {
+  max-width: none;
+  min-width: 36px;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.tab-points,
+.tab-timer {
+  font-family: 'Space Mono', monospace;
+  font-variant-numeric: slashed-zero;
+  font-size: 0.9rem;
+  color: #fff;
+  padding-right: 0.4rem;
+  white-space: nowrap;
+}
+
+.tab-timer {
+  margin-left: 0;
+}
+
+.tab-points {
+  margin-left: auto;
+}
+
+.address-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  background: #0f0f0f;
+  border-bottom: 1px solid #222;
+  flex-shrink: 0;
+}
+
+.address-input {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  color: #fff;
+  border-radius: 6px;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.9rem;
   font-family: 'Inter', sans-serif;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Playfair Display', serif;
+.address-input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.content-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.home-view {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-view-hidden,
+.browser-hidden,
+.webview-hidden {
+  display: none;
+}
+
+.browser-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.points-display {
+  font-family: 'Space Mono', monospace;
+  font-variant-numeric: slashed-zero;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #888;
+}
+
+.points-debt {
+  color: #ef4444;
+}
+
+.session-copy {
+  max-width: 420px;
+  text-align: center;
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }

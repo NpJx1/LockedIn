@@ -1,12 +1,23 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
-// Custom APIs for renderer
-const api = {}
+export type SessionMode = 'idle' | 'locked' | 'break'
 
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
+const api = {
+  onOpenTab: (callback: (url: string) => void) => {
+    const listener = (_event: unknown, url: string): void => {
+      callback(url)
+    }
+    ipcRenderer.on('browser:open-tab', listener)
+    return () => {
+      ipcRenderer.removeListener('browser:open-tab', listener)
+    }
+  },
+  setSessionMode: (mode: SessionMode) => {
+    ipcRenderer.send('session:mode', mode)
+  }
+}
+
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
