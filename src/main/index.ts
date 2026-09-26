@@ -19,11 +19,14 @@ function applyWindowMode(win: BrowserWindow, mode: SessionMode): void {
 
   if (mode === 'locked') {
     win.setKiosk(true)
+    win.setAlwaysOnTop(true, 'screen-saver')
+    win.setSkipTaskbar(true)
     return
   }
 
   win.setKiosk(false)
   win.setAlwaysOnTop(false)
+  win.setSkipTaskbar(false)
   if (win.isFullScreen()) {
     win.setFullScreen(false)
   }
@@ -106,6 +109,11 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+  })
+  mainWindow.on('blur', () => {
+    if (isLockActive()) {
+      mainWindow.focus()
+    }
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
