@@ -41,7 +41,7 @@ const STARTING_POINTS = 20
 const POINTS_PER_MINUTE = 1
 const BREAK_COST = 10
 const EMERGENCY_COST = 15
-const COMPLETION_BONUS = 5
+const COMPLETION_BONUS = 20
 
 function createId(): string {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
