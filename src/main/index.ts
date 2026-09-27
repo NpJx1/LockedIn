@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, session, WebContents, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session, WebContents, dialog, globalShortcut } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -30,6 +30,26 @@ function isLockActive(): boolean {
   return sessionMode === 'locked'
 }
 
+// Blocks the specific keys used to switch away from the app (Alt+Tab, the
+// task-switcher view, and Ctrl+Esc for the Start menu) while locked in,
+// instead of forcibly re-focusing on every blur - see the note in
+// createWindow() for why that approach breaks native OS dialogs.
+const LOCK_SHORTCUTS = ['Alt+Tab', 'Alt+Escape', 'Control+Escape']
+
+function lockdownSwitchAwayShortcuts(): void {
+  for (const accelerator of LOCK_SHORTCUTS) {
+    globalShortcut.register(accelerator, () => {
+      // Swallow the shortcut; do nothing.
+    })
+  }
+}
+
+function releaseSwitchAwayShortcuts(): void {
+  for (const accelerator of LOCK_SHORTCUTS) {
+    globalShortcut.unregister(accelerator)
+  }
+}
+
 function applyWindowMode(win: BrowserWindow, mode: SessionMode): void {
   if (win.isDestroyed()) return
 
@@ -37,6 +57,7 @@ function applyWindowMode(win: BrowserWindow, mode: SessionMode): void {
     win.setKiosk(true)
     win.setAlwaysOnTop(true, 'screen-saver')
     win.setSkipTaskbar(true)
+    lockdownSwitchAwayShortcuts()
     return
   }
 
@@ -49,6 +70,7 @@ function applyWindowMode(win: BrowserWindow, mode: SessionMode): void {
   win.setMinimizable(true)
   win.setMaximizable(true)
   win.setClosable(true)
+  releaseSwitchAwayShortcuts()
 }
 
 function guardWebContents(contents: WebContents): void {
@@ -126,11 +148,12 @@ function createWindow(): void {
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
-  mainWindow.on('blur', () => {
-    if (isLockActive()) {
-      mainWindow.focus()
-    }
-  })
+  // Note: no blur -> focus() handler here. Forcing focus back on every
+  // blur also fights legitimate native OS dialogs (Windows Hello / passkey
+  // prompts, UAC, the file picker) that briefly steal focus - the dialog
+  // stays visually on top but silently can't receive keystrokes. Blocking
+  // the specific switch-away shortcuts below achieves the same goal
+  // without that collateral damage.
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
@@ -204,6 +227,10 @@ app.whenReady().then(() => {
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on('will-quit', () => {
+  releaseSwitchAwayShortcuts()
 })
 
 app.on('window-all-closed', () => {
