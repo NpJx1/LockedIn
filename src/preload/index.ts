@@ -15,6 +15,9 @@ const api = {
   },
   setSessionMode: (mode: SessionMode) => {
     ipcRenderer.send('session:mode', mode)
+  },
+  openPdfDialog: (): Promise<string | null> => {
+    return ipcRenderer.invoke('dialog:open-pdf')
   }
 }
 

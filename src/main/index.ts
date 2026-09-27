@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, session, WebContents } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session, WebContents, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -152,6 +152,35 @@ app.whenReady().then(() => {
   })
 
   ipcMain.on('ping', () => console.log('pong'))
+
+  ipcMain.handle('dialog:open-pdf', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const wasAlwaysOnTop = win?.isAlwaysOnTop() ?? false
+
+    // 'screen-saver' level always-on-top sits above native OS dialogs,
+    // so the picker opens but stays hidden behind the locked window.
+    // Drop it just for the dialog, then restore it after.
+    if (win && wasAlwaysOnTop) {
+      win.setAlwaysOnTop(false)
+    }
+
+    try {
+      const { canceled, filePaths } = win
+        ? await dialog.showOpenDialog(win, {
+            properties: ['openFile'],
+            filters: [{ name: 'PDF', extensions: ['pdf'] }]
+          })
+        : await dialog.showOpenDialog({
+            properties: ['openFile'],
+            filters: [{ name: 'PDF', extensions: ['pdf'] }]
+          })
+      return canceled || filePaths.length === 0 ? null : filePaths[0]
+    } finally {
+      if (win && wasAlwaysOnTop) {
+        win.setAlwaysOnTop(true, 'screen-saver')
+      }
+    }
+  })
 
   createWindow()
 

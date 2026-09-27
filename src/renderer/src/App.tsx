@@ -47,14 +47,25 @@ function createId(): string {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
-function createWebTab(url: string): WebTab {
+function createWebTab(url: string, title = 'New Tab'): WebTab {
   return {
     id: createId(),
     type: 'web',
-    title: 'New Tab',
+    title,
     url,
     startUrl: url
   }
+}
+
+function toFileUrl(filePath: string): string {
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(filePath)) return filePath
+  const normalized = filePath.replace(/\\/g, '/')
+  const withLeadingSlash = normalized.startsWith('/') ? normalized : `/${normalized}`
+  return `file://${encodeURI(withLeadingSlash)}`
+}
+
+function isPdfUrl(url: string): boolean {
+  return /\.pdf($|[?#])/i.test(url)
 }
 
 function normalizeAddress(input: string): string {
@@ -180,6 +191,23 @@ function App() {
     setAddress(url)
   }
 
+  const openPdfInTab = (filePath: string): void => {
+    if (phase === 'idle') return
+    const url = toFileUrl(filePath)
+    const fileName = filePath.split(/[\\/]/).pop() ?? 'PDF'
+    const tab = createWebTab(url, fileName)
+    setTabs((current) => [...current, tab])
+    setActiveTabId(tab.id)
+    setAddress(url)
+  }
+
+  const handleOpenPdf = async (): Promise<void> => {
+    if (!canUseBrowser) return
+    const filePath = await window.api?.openPdfDialog?.()
+    if (!filePath) return
+    openPdfInTab(filePath)
+  }
+
   const ensureBrowserTab = (): void => {
     if (webTabs.length === 0) {
       const tab = createWebTab(DEFAULT_TAB_URL)
@@ -301,7 +329,11 @@ function App() {
 
     const syncTab = (): void => {
       const currentUrl = webview.getURL()
-      const title = webview.getTitle() || 'New Tab'
+      const rawTitle = webview.getTitle()
+      const fallbackTitle = isPdfUrl(currentUrl)
+        ? decodeURIComponent(currentUrl.split(/[\\/]/).pop() ?? 'PDF')
+        : 'New Tab'
+      const title = rawTitle || fallbackTitle
       updateWebTab(id, { url: currentUrl, title })
       setActiveTabId((currentId) => {
         if (currentId === id) {
@@ -343,6 +375,9 @@ function App() {
           ))}
           <button className="tab tab-new" onClick={addTab} title="New tab">
             +
+          </button>
+          <button className="tab tab-pdf" onClick={handleOpenPdf} title="Open a local PDF">
+            Open PDF
           </button>
           <span className={`tab-points ${points < 0 ? 'points-debt' : ''}`}>
             {points} PTS
@@ -437,6 +472,7 @@ function App() {
               src={tab.startUrl}
               partition="persist:lockedin"
               allowpopups={true}
+              webpreferences="plugins"
               ref={(node) => attachWebview(tab.id, node)}
             />
           ))}
