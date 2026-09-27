@@ -67,6 +67,12 @@
     "portable": {
       "artifactName": "${productName}-${version}-Portable.${ext}"
     },
+    "extraResources": [
+      {
+        "from": "resources/extensions",
+        "to": "extensions"
+      }
+    ],
     "directories": {
       "buildResources": "build"
     }

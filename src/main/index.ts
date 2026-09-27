@@ -6,6 +6,22 @@ import { getBlockedPageUrl, isBlockedSocialUrl } from '../shared/sitePolicy'
 
 const BROWSER_PARTITION = 'persist:lockedin'
 
+// Path to an unpacked MV3 ad-blocker extension (e.g. uBlock Origin Lite).
+// In dev this reads from the project's resources/ folder; in a packaged
+// build it reads from the extraResources copy declared in package.json.
+const ADBLOCK_EXTENSION_PATH = app.isPackaged
+  ? join(process.resourcesPath, 'extensions/ublock-origin-lite')
+  : join(__dirname, '../../resources/extensions/ublock-origin-lite')
+
+async function loadAdblockExtension(): Promise<void> {
+  try {
+    const browserSession = session.fromPartition(BROWSER_PARTITION)
+    await browserSession.loadExtension(ADBLOCK_EXTENSION_PATH, { allowFileAccess: true })
+  } catch (error) {
+    console.error('Failed to load ad-blocking extension', error)
+  }
+}
+
 type SessionMode = 'idle' | 'locked' | 'break'
 
 let sessionMode: SessionMode = 'idle'
@@ -131,6 +147,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.electron')
   registerSocialBlocker()
+  void loadAdblockExtension()
 
   app.on('web-contents-created', (_event, contents) => {
     if (contents.getType() === 'webview') {
