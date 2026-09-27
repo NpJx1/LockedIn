@@ -1,5 +1,6 @@
 # Locked In
 ## Productivity Focused LockDown Browser
+### Main .exe is in Lockedin/dist/win-unpacked
 
 LockedIn is a high-stakes productivity desktop browser built with Electron and React. Instead of relying purely on willpower, LockedIn replaces your standard browser with a heavily restricted, custom web environment powered by a real-time points economy.
 
